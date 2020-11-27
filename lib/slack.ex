@@ -72,9 +72,52 @@ defmodule Slack do
   [Slack API types]: https://api.slack.com/types
   """
 
+  alias Slack.Web.{Channel, Message, User}
+
+  def conversations(opts \\ %{}),
+    do: Slack.Conversations.list(opts)
+
+  def send_message(channel_or_user, text, opts \\ %{})
+  def send_message(%Channel{id: channel}, text, opts),
+    do: send_message(channel, text, opts)
+  def send_message("C" <> _cid = channel, text, opts),
+    do: Slack.Chat.post_message(channel, text, opts)
+  def send_message(%User{id: user}, text, opts) do
+    send_message(user, text, opts)
+  end
+  def send_message("U" <> _uid = user, text, opts) do
+    with {:ok, channel} <- Slack.Im.open(user, opts),
+      do: send_message(channel, text, opts)
+  end
+
+  def send_message(%Message{channel: channel, text: text}) when not is_nil(channel),
+    do: send_message(channel, text)
+  def send_message(%Message{user: user, text: text}),
+    do: send_message(user, text)
+
+
+  def delete(%Message{channel: channel, ts: ts}, opts \\ %{}),
+    do: Slack.Chat.delete(channel, ts, opts)
+
+  def info(channel_or_user, opts \\ %{})
+  def info(%Channel{id: channel}, opts),
+    do: info(channel, opts)
+  def info("C" <> _cid = channel, opts),
+    do: Slack.Channels.info(channel, opts)
+  def info(%User{id: user}, opts),
+    do: info(user, opts)
+  def info("U" <> _uid = user, opts),
+    do: Slack.Users.info(user, opts)
+
+  def history(channel, opts \\ %{})
+  def history(%Channel{id: channel}, opts),
+    do: history(channel, opts)
+  def history("C" <> _cid = channel, opts),
+    do: Slack.Channels.history(channel, opts)
+
+
   defmacro __using__(_) do
     quote do
-      import Slack
       import Slack.Lookups
       import Slack.Sends
 

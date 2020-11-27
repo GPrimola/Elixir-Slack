@@ -27,4 +27,33 @@ defmodule Slack.FakeSlack.Router do
 
     send_resp(conn, 200, response)
   end
+
+  post "/api/:endpoint" do
+    conn = fetch_query_params(conn)
+    {:ok, body, conn} = read_body(conn)
+    params = URI.decode_query(body)
+    limit = Map.get(params, :limit, 5)
+
+    entities = build_list(limit, String.to_atom(String.replace(conn.params["endpoint"], ".", "_")))
+    entity_type =
+      conn.params["endpoint"]
+      |> String.split(".")
+      |> List.first()
+      |> case do
+        "conversations" -> "channels"
+        type -> type
+      end
+
+    resp = %{
+      entity_type => entities,
+      "ok" => true,
+      "response_metadata" => %{
+        "next_cursor" => "dGVhbTpDMDJHQ0ZUSDA=",
+        "warnings" => ["superfluous_charset"]
+      },
+      "warning" => "superfluous_charset"
+    }
+
+    send_resp(conn, 200, Jason.encode!(resp))
+  end
 end
